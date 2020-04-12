@@ -252,7 +252,13 @@ public class connectPG {
         }
     }
     public static String formatWord(String input){
-        while(input.length()<30){
+        while(input.length()<25){
+            input = input + " ";
+        }
+        return input;
+    }
+    public static String longFormatWord(String input){
+        while(input.length()<100){
             input = input + " ";
         }
         return input;
@@ -269,16 +275,39 @@ public class connectPG {
                     "WHERE e.eid = c.box_eid\n" +
                     "ORDER BY c.box_eid");
             String head = formatWord("Employee ID") + formatWord("Employee Name") + formatWord("No. of Sales");
-            System.out.println(head);//print the head of table
+            System.out.println(head+"\n");//print the head of table
             while(rs.next()){//print each tuple
                 String tuple = formatWord(rs.getString("box_eid")) + formatWord(rs.getString("ename")) + formatWord(""+rs.getInt("sale_count"));
                 System.out.println(tuple);
             }
             rs.close();//close the cursor
         }catch(SQLException e){//report error
-            System.out.print(e.getMessage());
+            System.out.println(e.getMessage());
             System.out.println("Database error.");
         }
+    }
+    public static void printDuty(){//print the duty of service personnel and their supervisor
+        try{
+            ResultSet rs = stmt.executeQuery("SELECT s.eid,e.ename,s.addr,s.room_num,a.supervisor_name FROM\n" +
+                    "servicepersonnel s,employee e, (SELECT staff_eid, ename AS supervisor_name\n" +
+                    "FROM supervises, employee\n" +
+                    "WHERE admin_eid = eid) a\n" +
+                    "WHERE s.eid = staff_eid AND s.eid = e.eid\n" +
+                    "ORDER BY s.eid");
+            String head = formatWord("Employee ID") + formatWord("Employee Name") + longFormatWord("Theatre Address")+
+                    formatWord("Room Number") + formatWord("Supervisor");
+            System.out.println(head+"\n");//print the head of table
+            while(rs.next()){//print each tuple
+                String tuple = formatWord(rs.getString("eid")) + formatWord(rs.getString("ename"))
+                        + longFormatWord(rs.getString("addr")) + formatWord(rs.getString("room_num")) + formatWord(rs.getString("supervisor_name"));
+                System.out.println(tuple);
+            }
+            rs.close();//close the cursor
+        }catch(SQLException e){//report error
+            System.out.println(e.getMessage());
+            System.out.println("Database error.");
+        }
+
     }
     //print operation options for customers
     public static void printOptionCustomer(){
@@ -325,6 +354,7 @@ public class connectPG {
                                 printSale();
 								break;
 							case 3://review duty
+                                printDuty();
 								break;
                             case 4:
                                 break administration;
