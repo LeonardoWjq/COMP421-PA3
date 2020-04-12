@@ -1,6 +1,8 @@
-package src;
+//package Java.src;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.InputMismatchException;
 import java.util.Scanner;
 import java.time.LocalDate;
@@ -511,62 +513,85 @@ public class connectPG {
 			name = "'" + name + "'";
 			String sql = "SELECT * FROM shows  WHERE title = " + name;
 			int counter = 1;
-			ArrayList<String> shows = new ArrayList<>();
-
+			HashMap<String, HashSet<Integer>> shows = new HashMap<>();
+			ArrayList<String> show_schedules = new ArrayList<>();
+			
 			ResultSet rs = stmt.executeQuery(sql);
 			while (rs.next()) {
 				System.out.println(String.format("%1$d. INFO for Show %2$s:", counter, rs.getString("title")));
+				String addr = rs.getString("addr");
+				String room = String.format("%1$s", rs.getInt("room"));
+				String sdate = String.format("%1$s", rs.getDate("sdate"));
+				String start_time = String.format("%1$s", rs.getTime("start_time"));
 				System.out.println(String.format(
-						"address: %1$s; room: %2$d; date: %3$s; start time: %4$s; end time: %5$s; director: %6$s; language: %7$s",
-						rs.getString("addr"), rs.getInt("room"), rs.getDate("sdate"), rs.getTime("start_time"),
+						"address: %1$s; room: %2$s; date: %3$s; start time: %4$s; end time: %5$s; director: %6$s; language: %7$s",
+						addr, room, sdate, start_time,
 						rs.getTime("end_time"), rs.getString("director"), rs.getString("lang")));
-				shows.add(String.format("%1$s;%2$d;%3$s;%4$s", rs.getString("addr"), rs.getInt("room"),
-						rs.getDate("sdate"), rs.getTime("start_time")));
-				System.out.println();
+	
+				
+				String sql2 = "SELECT capacity FROM room WHERE addr = '" + addr + "' AND room = " + room;
+				Statement stmt2 = con.createStatement();
+				ResultSet rs2 = stmt2.executeQuery(sql2);
+				rs2.next();
+				int capacity = rs2.getInt("capacity");	/// For debug
+				System.out.println(capacity);
+				String key = String.format(
+						"%1$s;%2$s;%3$s;%4$s;%5$d",
+						addr, room, sdate, start_time, capacity);
+				shows.put(key, new HashSet<Integer>());
+				show_schedules.add(key);
+				
+				String sql3 = String.format("SELECT t.seat_num " + 
+						"FROM tickets t " + 
+						"WHERE t.addr = '%1$s' AND t.room_num = %2$s AND t.start_time = '%3$s' AND t.sdate = '%4$s' ", 
+						addr, room, start_time, sdate);
+				Statement stmt3 = con.createStatement();
+				ResultSet rs3 = stmt3.executeQuery(sql3);
+				while(rs3.next()) {
+					shows.get(key).add(rs3.getInt("seat_num"));
+				}
+				System.out.println("Avaliable seats: ");
+				for (int i = 1; i <= capacity; i ++) {
+					if (shows.get(key).contains(i)) {
+						System.out.print(" X");
+					} else {
+						System.out.print(String.format("%1$2d", i));
+					} 
+					System.out.print(" ");
+					if (i % 10 == 0) {
+						System.out.println();
+					}
+				}
 				counter++;
 			}
-
+			
 			if (counter == 1) {
 				System.out.println("The show name is invalid. Action failed, please retry.");
 				scanner.close();
 				return;
 			}
+			
 			System.out.println(
-					"Please enter the show schedule that you pick and amount of tickets that you want to buy.");
-			System.out.println("Simply specify 2 numbers seperated by an empty space.");
+					"Please enter your social id number, the payment method, show schedule that you pick, and seat numbers you want.");
+			System.out.println("Simply specify them seperated by an empty space.");
+			System.out.println("Example: 123456789(social id), card(payment method) 1(shedule number) 25(seat number) 26(seat number)");
+			// TODO: Check user input
 			String[] sarr = scanner.nextLine().split(" ");
-			int schedule = Integer.parseInt(sarr[0]);
-			int amount = Integer.parseInt(sarr[1]);
-			String[] show_info = shows.get(schedule).split(";");
-
-			// Check capacity
-			sql = "SELECT * FROM room WHERE addr = '" + show_info[0] + "' AND room = " + show_info[1];
-			int capacity = 0;
-			int ticket_count = 0;
-
-			rs = stmt.executeQuery(sql);
-			while (rs.next()) {
-				capacity = rs.getInt("capacity");
-			}
-
-			sql = String.format("SELECT COUNT(*) " + "FROM tickets t, shows s "
-					+ "WHERE s.addr = t.addr AND s.room = t.room_num AND s.sdate = t.sdate AND s.start_time = t.start_time "
-					+ "AND s.addr = '%1$s' AND s.room = %2$s AND s.sdate = '%3$s' AND s.start_time = '%4$s'",
-					show_info[0], show_info[1], show_info[2], show_info[3]);
-
-			rs = stmt.executeQuery(sql);
-			while (rs.next()) {
-				ticket_count = rs.getInt("count");
-			}
-			if (ticket_count + amount > capacity) {
-				System.out.println("The room capacity for the show is exceeded.");
-				System.out.println("Transcation failed, please try again.");
+			String id = sarr[0];
+			int schedule = Integer.parseInt(sarr[1]);
+			String method = sarr[2];
+			HashSet<Integer> sold_seats = shows.get(show_schedules.get(schedule));
+			for (int i = 3; i < sarr.length; i ++ ) {
+				if (sold_seats.contains(Integer.parseInt(sarr[i]))) {
+					System.out.println("The seat " + sarr[i] + " is sold.");
+					System.out.println("Transaction failed. Please try again.");
+				}
 			}
 			
-			
+
 		} catch (SQLException e) {
 			System.out.println("Database error.");
-			System.err.println("msg: " + e.getMessage() + "code: " + e.getErrorCode() + "state: " + e.getSQLState());
+			System.err.println("msg: " + e.getMessage() + " code: " + e.getErrorCode() + " state: " + e.getSQLState());
 		}
 
 		scanner.close();
