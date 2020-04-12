@@ -251,6 +251,35 @@ public class connectPG {
             }
         }
     }
+    public static String formatWord(String input){
+        while(input.length()<30){
+            input = input + " ";
+        }
+        return input;
+    }
+
+    public static void printSale(){//print the sale statistics
+        try{
+            ResultSet rs = stmt.executeQuery("SELECT c.box_eid, e.ename, c.sale_count FROM\n" +
+                    "Employee e, (SELECT b.eid as box_eid,COUNT(DISTINCT COALESCE(t.ticket_num)) as sale_count FROM\n" +
+                    "\t\t\t BoxofficeClerk b LEFT JOIN tickets t\n" +
+                    "\t\t\t ON b.eid = t.eid\n" +
+                    "\t\t\t GROUP BY b.eid\n" +
+                    "\t\t\t ORDER BY b.eid) c\n" +
+                    "WHERE e.eid = c.box_eid\n" +
+                    "ORDER BY c.box_eid");
+            String head = formatWord("Employee ID") + formatWord("Employee Name") + formatWord("No. of Sales");
+            System.out.println(head);//print the head of table
+            while(rs.next()){//print each tuple
+                String tuple = formatWord(rs.getString("box_eid")) + formatWord(rs.getString("ename")) + formatWord(""+rs.getInt("sale_count"));
+                System.out.println(tuple);
+            }
+            rs.close();//close the cursor
+        }catch(SQLException e){//report error
+            System.out.print(e.getMessage());
+            System.out.println("Database error.");
+        }
+    }
     //print operation options for customers
     public static void printOptionCustomer(){
         System.out.println("Please choose from the following options:");
@@ -290,11 +319,12 @@ public class connectPG {
 						printOptionAdministrator();
 						int option_adm = scanner.nextInt();
 						switch (option_adm) {
-							case 1:
+							case 1://add movie schedule
 								break;
-							case 2:
+							case 2://sale statistics
+                                printSale();
 								break;
-							case 3:
+							case 3://review duty
 								break;
                             case 4:
                                 break administration;
