@@ -9,10 +9,12 @@ public class connectPG {
     private static final String password = "comp4212009";
     private static Connection con; //global connection object
     private static Statement stmt;//global statement object
+    private static Scanner scanner;//global scanner object
     public static boolean start(){//set up a connection and initialize the fields
         try {
             con = DriverManager.getConnection(url, user, password);
             stmt = con.createStatement();
+            scanner = new Scanner(System.in);
             System.out.println("Connected to the PostgreSQL server successfully.");
             return true;
         } catch (SQLException e) {
@@ -36,7 +38,7 @@ public class connectPG {
         System.out.println("3 Review Duty");
         System.out.println("4 Go Back");
     }
-    public static int navigate(Scanner scanner){
+    public static int navigate(){
         while(true){
             System.out.println("Continue or Go Back?");
             System.out.println("1 Continue");
@@ -52,7 +54,7 @@ public class connectPG {
             }
         }
     }
-    public static boolean authenticate(Scanner scanner) throws SQLException{
+    public static boolean authenticate() throws SQLException{
         while(true) {
             //print login options
             System.out.println("Please login or sign up:");
@@ -107,7 +109,7 @@ public class connectPG {
                         rs = stmt.executeQuery(sql);
                     }catch (SQLException e){
                         System.out.println("Database error. Want to try again?");
-                        int response = navigate(scanner);
+                        int response = navigate();
                         if(response == 1){
                             continue;
                         }else{
@@ -149,7 +151,7 @@ public class connectPG {
                             }catch (SQLException e){
                                 System.out.println(e.getMessage());
                                 System.out.println("Database error. Want to try again?");
-                                int response = navigate(scanner);
+                                int response = navigate();
                                 if(response == 1)
                                     continue;
                                 else{
@@ -164,7 +166,7 @@ public class connectPG {
                                 System.out.println("Please confirm the correctness of your input.");
                                 rs.close();
                                 //check the intention of the user to keep trying or go back
-                                int choice = navigate(scanner);
+                                int choice = navigate();
                                 if(choice == 1) {//keep trying
                                     scanner.nextLine();
                                     continue;
@@ -181,7 +183,7 @@ public class connectPG {
                             }catch (SQLException e){
                                 System.out.println(e.getMessage());
                                 System.out.println("Database error. Want to try again?");
-                                int response = navigate(scanner);
+                                int response = navigate();
                                 if(response == 1)
                                     continue;
                                 else{
@@ -231,7 +233,7 @@ public class connectPG {
                     }catch (SQLException e){
                         System.out.println(e.getMessage());
                         System.out.println("Database error. Want to try again?");
-                        int response = navigate(scanner);
+                        int response = navigate();
                         if(response == 1)
                             continue;
                         else{
@@ -268,8 +270,6 @@ public class connectPG {
                 System.out.println("Failed to connect to the database.");
                 System.exit(1);
             }
-            
-            Scanner scanner = new Scanner(System.in);//create a new scanner for user inputs
             while(true){
             	greeting();//print greeting
             	int option;
@@ -282,7 +282,7 @@ public class connectPG {
 				}
 				if(option==1) {//administrator branch
 				    //authentication
-				    if(!authenticate(scanner))//if authentication fails the user cannot access administration page
+				    if(!authenticate())//if authentication fails the user cannot access administration page
 				        continue;
 
 				    administration:
