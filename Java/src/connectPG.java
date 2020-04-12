@@ -1,5 +1,6 @@
 package src;
 import java.sql.*;
+import java.util.ArrayList;
 import java.util.InputMismatchException;
 import java.util.Scanner;
 
@@ -316,7 +317,188 @@ public class connectPG {
         System.out.println("2 Recent Shows");
         System.out.println("3 View Your Transaction Records");
     }
+    
+    public static void bookTickets() {
+		System.out.println("Please input the show name that you want.");
+		System.out.print(">> ");
+		Scanner scanner = new Scanner(System.in);
+		String name = scanner.nextLine();
+		// TODO: Check for user input
 
+		// End check
+
+		try {
+			name = "'" + name + "'";
+			String sql = "SELECT * FROM shows  WHERE title = " + name;
+			int counter = 1;
+			ArrayList<String> shows = new ArrayList<>();
+
+			ResultSet rs = stmt.executeQuery(sql);
+			while (rs.next()) {
+				System.out.println(String.format("%1$d. INFO for Show %2$s:", counter, rs.getString("title")));
+				System.out.println(String.format(
+						"address: %1$s; room: %2$d; date: %3$s; start time: %4$s; end time: %5$s; director: %6$s; language: %7$s",
+						rs.getString("addr"), rs.getInt("room"), rs.getDate("sdate"), rs.getTime("start_time"),
+						rs.getTime("end_time"), rs.getString("director"), rs.getString("lang")));
+				shows.add(String.format("%1$s;%2$d;%3$s;%4$s", rs.getString("addr"), rs.getInt("room"),
+						rs.getDate("sdate"), rs.getTime("start_time")));
+				System.out.println();
+				counter++;
+			}
+
+			if (counter == 1) {
+				System.out.println("The show name is invalid. Action failed, please retry.");
+				scanner.close();
+				return;
+			}
+			System.out.println(
+					"Please enter the show schedule that you pick and amount of tickets that you want to buy.");
+			System.out.println("Simply specify 2 numbers seperated by an empty space.");
+			String[] sarr = scanner.nextLine().split(" ");
+			int schedule = Integer.parseInt(sarr[0]);
+			int amount = Integer.parseInt(sarr[1]);
+			String[] show_info = shows.get(schedule).split(";");
+
+			// Check capacity
+			sql = "SELECT * FROM room WHERE addr = '" + show_info[0] + "' AND room = " + show_info[1];
+			int capacity = 0;
+			int ticket_count = 0;
+
+			rs = stmt.executeQuery(sql);
+			while (rs.next()) {
+				capacity = rs.getInt("capacity");
+			}
+
+			sql = String.format("SELECT COUNT(*) " + "FROM tickets t, shows s "
+					+ "WHERE s.addr = t.addr AND s.room = t.room_num AND s.sdate = t.sdate AND s.start_time = t.start_time "
+					+ "AND s.addr = '%1$s' AND s.room = %2$s AND s.sdate = '%3$s' AND s.start_time = '%4$s'",
+					show_info[0], show_info[1], show_info[2], show_info[3]);
+
+			rs = stmt.executeQuery(sql);
+			while (rs.next()) {
+				ticket_count = rs.getInt("count");
+			}
+			if (ticket_count + amount > capacity) {
+				System.out.println("The room capacity for the show is exceeded.");
+				System.out.println("Transcation failed, please try again.");
+			}
+			
+			
+		} catch (SQLException e) {
+			System.out.println("Database error.");
+			System.err.println("msg: " + e.getMessage() + "code: " + e.getErrorCode() + "state: " + e.getSQLState());
+		}
+
+		scanner.close();
+	}
+
+    public static void recentShows() {
+		System.out.println("Please input a time period for shows that you are looking for.");
+		System.out.println("Please respect the form YYYY-MM-DD to YYYY-MM-DD, where the first date "
+				+ "is smaller than or equal to the second time and both dates are inclusive.");
+		System.out.print(">> ");
+		Scanner scanner = new Scanner(System.in);// create a new scanner for user inputs
+		String time_period = scanner.nextLine();
+		String[] dates = time_period.split("to");
+		String date0 = "'" + dates[0].trim() + "'";
+		String date1 = "'" + dates[1].trim() + "'";
+		// TODO: Check user's input.
+
+		// End TODO: Check user's input.
+		// Query for movies
+		String sql = "SELECT m.rating, s.title, m.genre, s.addr, s.sdate, s.start_time, s.end_time, s.director, s.lang "
+				+ "FROM shows s, movie m " + "WHERE s.sdate >= " + date0 + " AND s.sdate <= " + date1
+				+ " AND s.addr = m.addr AND s.room = m.room_num AND s.sdate = m.mdate AND s.start_time = m.start_time "
+				+ "ORDER BY m.rating DESC";
+		System.out.println("Movies found (ordered by rating):");
+		try {
+			ResultSet rs = stmt.executeQuery(sql);
+			int counter = 1;
+			while (rs.next()) {
+				System.out.println(String.format("%1$d. INFO for Movie %2$s with rating %3$.2f in genre %4$s:", counter,
+						rs.getString("title"), rs.getDouble("rating"), rs.getString("genre")));
+				System.out.println(String.format(
+						"address: %1$s; date: %2$s; start time: %3$s; end time: %4$s; director: %5$s; language: %6$s",
+						rs.getString("addr"), rs.getDate("sdate"), rs.getTime("start_time"), rs.getTime("end_time"),
+						rs.getString("director"), rs.getString("lang")));
+				System.out.println();
+				counter++;
+			}
+		} catch (SQLException e) {
+			System.out.println("Database error.");
+			System.err.println("msg: " + e.getMessage() + "code: " + e.getErrorCode() + "state: " + e.getSQLState());
+		}
+
+		// Query for stage shows
+		sql = "SELECT s.title, t.leading_actor, s.addr, s.sdate, s.start_time, s.end_time, s.director, s.lang "
+				+ "FROM shows s, stageshow t " + "WHERE s.sdate >= " + date0 + " AND s.sdate <= " + date1
+				+ " AND s.addr = t.addr AND s.room = t.room_num AND s.sdate = t.sdate AND s.start_time = t.start_time ";
+		System.out.println("Stage shows found:");
+		try {
+			ResultSet rs = stmt.executeQuery(sql);
+			int counter = 1;
+			while (rs.next()) {
+				System.out.println(String.format("%1$d. INFO for Stage show %2$s with leading actor %3$s:", counter,
+						rs.getString("title"), rs.getString("leading_actor")));
+				System.out.println(String.format(
+						"address: %1$s; date: %2$s; start time: %3$s; end time: %4$s; director: %5$; language: %6$s",
+						rs.getString("addr"), rs.getDate("sdate"), rs.getTime("start_time"), rs.getTime("end_time"),
+						rs.getString("director"), rs.getString("lang")));
+				System.out.println();
+				counter++;
+			}
+		} catch (SQLException e) {
+			System.out.println("Database error.");
+			System.err.println("msg: " + e.getMessage() + "code: " + e.getErrorCode() + "state: " + e.getSQLState());
+		}
+		scanner.close();
+
+	}
+
+	public static void paymentRecord() {
+		System.out.println("Please input a your 9 digit social id number.");
+		System.out.print(">> ");
+		Scanner scanner = new Scanner(System.in);// create a new scanner for user inputs
+		String id = scanner.nextLine();
+		// TODO: Check user's input.
+
+		// End TODO: Check user's input.
+		id = "'" + id + "'";
+		// Query for payment records
+		String sql = "SELECT p.payment_num, p.payment_method, p.amount, p.ptime, t.price, t.addr, s.title, s.sdate, s.start_time "
+				+ "FROM payment p, tickets t, shows s " + "WHERE p.sid = " + id
+				+ " AND p.payment_num = t.pid AND s.addr = t.addr AND s.room = t.room_num AND s.sdate = t.sdate AND s.start_time = t.start_time "
+				+ "ORDER BY p.ptime, p.payment_num";
+
+		System.out.println("Payment records found:");
+		String counter = "empty";
+		try {
+			ResultSet rs = stmt.executeQuery(sql);
+			while (rs.next()) {
+				String payment = String.format(
+						"Payment number %1$s with amount %2$.2f. payment method: %3$s, payment time: %4$s",
+						rs.getString("payment_num"), rs.getDouble("amount"), rs.getString("payment_method"),
+						rs.getTimestamp("ptime"));
+				String item = String.format(
+						"Item INFO: show name: %1$s; show address: %2$s; show date: %3$s; start time: %4$s",
+						rs.getString("title"), rs.getString("addr"), rs.getDate("sdate"), rs.getTime("start_time"));
+				if (payment.equals(counter)) {
+					System.out.println(item);
+				} else {
+					System.out.println();
+					System.out.println(payment);
+					System.out.println(item);
+					counter = payment;
+				}
+			}
+		} catch (SQLException e) {
+			System.out.println("Database error.");
+			System.err.println("msg: " + e.getMessage() + "code: " + e.getErrorCode() + "state: " + e.getSQLState());
+		}
+		System.out.println();
+		scanner.close();
+	}
+    
     //main loop
     public static void main(String[] args) throws SQLException {
     	
@@ -371,10 +553,13 @@ public class connectPG {
 						int option_cust = scanner.nextInt();
 						switch (option_cust) {
 							case 1:
+								bookTickets();
 								break;
 							case 2:
+								recentShows();
 								break;
 							case 3:
+								paymentRecord();
 								break;
 							default:
 							{
