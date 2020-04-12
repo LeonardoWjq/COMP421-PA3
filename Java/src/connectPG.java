@@ -3,6 +3,7 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.InputMismatchException;
 import java.util.Scanner;
+import java.time.LocalDate;
 
 public class connectPG {
     private static final String url = "jdbc:postgresql://comp421.cs.mcgill.ca:5432/cs421";
@@ -264,6 +265,185 @@ public class connectPG {
         }
         return input;
     }
+    public static ArrayList<String> printTheatres() throws SQLException{//print the theatre info and return a list of addresses
+        ArrayList<String> addresses = new ArrayList<>();
+        ResultSet rs = stmt.executeQuery("SELECT * FROM\n" +
+                "Theatre");
+        System.out.println(longFormatWord("   Name")+longFormatWord("   Address"));
+        int option = 1;
+        while(rs.next()){
+            System.out.println(""+option+"  " + longFormatWord(rs.getString("theatre_name")) + longFormatWord(rs.getString("addr")));
+            addresses.add(rs.getString("addr"));
+            option++;
+        }
+        rs.close();
+        return addresses;
+    }
+    public static ArrayList<Integer> printRooms(String addr) throws SQLException{//print the room numbers and their capacity and return the room numbers
+        ArrayList<Integer> roomNums = new ArrayList<>();
+        ResultSet rs = stmt.executeQuery("SELECT room,capacity\n" +
+                "FROM Room\n" +
+                "WHERE addr = " + addr + "\n" +
+                "ORDER BY room");
+        System.out.println(formatWord("Room Number") + formatWord("Capacity")+"\n");
+        while(rs.next()){
+            System.out.println(formatWord(""+rs.getInt("room"))+ formatWord(""+rs.getInt("capacity")));
+            roomNums.add(rs.getInt("room"));
+        }
+
+        return roomNums;
+    }
+    public static boolean compareCurrentDate(int year,int month, int day){//return true if the input date is later than the current date
+        String current = java.time.LocalDate.now().toString();
+        String[] split = current.split("-");
+        int currentYear = Integer.parseInt(split[0]);
+        int currentMonth = Integer.parseInt(split[1]);
+        int currentDay = Integer.parseInt(split[2]);
+        if(currentYear<year){//the input year is later
+            return true;
+        }else if(currentYear>year){//the input year is earlier
+            return false;
+        }else{//same year
+            if(currentMonth<month){//the input month is later
+                return true;
+            }else if(currentMonth>month){//the input month is earlier
+                return false;
+            }else{//same month
+                if(currentDay<day){//the input day is later
+                    return true;
+                }else{//the input day is same or earlier
+                    return false;
+                }
+            }
+        }
+    }
+    public static boolean containsElement(int[] arr, int element){
+        for(int i: arr){
+            if(i==element)
+                return true;
+        }
+        return false;
+    }
+    public static boolean dateRangeCheck(int year, int month, int day){
+        if(month<1||month>12){//check the range of the month
+            return false;
+        }
+        int[] longMonth = {1,3,5,7,8,10,12};
+        int[] shortMonth = {4,6,9,11};
+        if(containsElement(longMonth,month)){//month is long month: 31 days
+            if(day>=1&&day<31)
+                return true;
+            else
+                return false;
+        }else if(containsElement(shortMonth,month)){//month is short month:30 days
+            if(day>=1&&day<=30)
+                return true;
+            else
+                return false;
+        }else{//It is February
+            if((year%4==0&&year%100!=0)||year%400==0){//leap year: 29 days
+                if(day>=1&&day<=29)
+                    return true;
+                else
+                    return false;
+            }else{//normal year: 28 days
+                if(day>=1&&day<=28)
+                    return  true;
+                else
+                    return false;
+            }
+        }
+    }
+    public static boolean verifyDate(String date){
+        int inputYear;
+        int inputMonth;
+        int inputDay;
+        //length mismatch
+        String[] split = date.split("-");
+        if(split.length!=3){
+            System.out.println("Format mismatched.");
+            return false;
+        }
+        //format mismatch
+        try{
+            inputYear = Integer.parseInt(split[0]);
+            inputMonth = Integer.parseInt(split[1]);
+            inputDay = Integer.parseInt(split[2]);
+        }catch(NumberFormatException e){
+            System.out.print("Please input digits for year, month and day.");
+            return false;
+        }
+        if(!dateRangeCheck(inputYear,inputMonth,inputDay)) {//not in range of a valid date
+            System.out.println("Please input a valid date.");
+            return false;
+        }
+        if(compareCurrentDate(inputYear,inputMonth,inputDay)){
+            return true;
+        }else{
+            System.out.println("You can only schedule a new show for a date later than today.");
+            return false;
+        }
+    }
+    public static void addShow(){
+        while(true){
+            String address;//addr
+            int roomNum;//room
+            String startDate;//sdate
+            String startTime;//start_time
+            String title;
+            String director;
+            String language;//lang
+            int price;
+            try{
+                System.out.println("Please follow the instructions to schedule a new show:\n");
+
+                System.out.println("Please choose from the theatres:\n");
+                ArrayList<String> addresses = printTheatres();//get the addresses
+                System.out.print(">>  ");
+                int theatreOption = scanner.nextInt();//get user input for theatre choice
+                if (theatreOption<1||theatreOption>addresses.size()){//The option is invalid
+                    System.out.println("Choose from oprions 1 to " + addresses.size());
+                    throw new InputMismatchException();
+                }else{
+                    address = "'" + addresses.get(theatreOption-1) + "'";
+                }
+                //The address of the theatre is received successfully
+
+                System.out.println("Please choose a room:\n");
+                ArrayList<Integer> rooms = printRooms(address);
+                System.out.print(">>  ");
+                roomNum = scanner.nextInt();
+                if(!rooms.contains(roomNum)){
+                    System.out.print("Choose from room numbers\t");
+                    for(int num: rooms){
+                        System.out.print(num+"\t");
+                    }
+                    System.out.println();
+                    throw new InputMismatchException();
+                }
+                //The room number is received successfully
+
+                System.out.println("Please enter the date that you want to schedule for this show in the YYYY-MM-DD format:\n");
+                System.out.print(">>  ");
+                scanner.nextLine();
+                startDate = scanner.nextLine();
+                if(!verifyDate(startDate))
+                    throw new InputMismatchException();
+                startDate = "'" + startDate + "'";
+                //The input date is valid
+
+
+
+
+
+            }catch(InputMismatchException e){
+                System.out.println("Please provide the inputs in proper formats.\n");
+            }catch (SQLException e){
+                System.out.println("Database Error.");
+                System.out.println(e.getMessage());
+            }
+        }
+    }
 
     public static void printSale(){//print the sale statistics
         try{
@@ -501,7 +681,6 @@ public class connectPG {
     
     //main loop
     public static void main(String[] args) throws SQLException {
-    	
         try {
             DriverManager.registerDriver(new org.postgresql.Driver());//register driver
             System.out.println("Found driver.");
@@ -531,6 +710,7 @@ public class connectPG {
 						int option_adm = scanner.nextInt();
 						switch (option_adm) {
 							case 1://add movie schedule
+                                addShow();
 								break;
 							case 2://sale statistics
                                 printSale();
