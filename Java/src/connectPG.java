@@ -1,4 +1,4 @@
-//package Java.src;
+package src;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -333,7 +333,7 @@ public class connectPG {
         int[] longMonth = {1,3,5,7,8,10,12};
         int[] shortMonth = {4,6,9,11};
         if(containsElement(longMonth,month)){//month is long month: 31 days
-            if(day>=1&&day<31)
+            if(day>=1&&day<=31)
                 return true;
             else
                 return false;
@@ -386,15 +386,114 @@ public class connectPG {
             return false;
         }
     }
+    public static boolean verifyTime(String time){
+        String[] split = time.split(":");
+        if(split.length!=3){
+            System.out.println("Format mismatched.");
+            return false;
+        }
+        int hour;
+        int min;
+        int sec;
+        try{
+            hour = Integer.parseInt(split[0]);
+            min = Integer.parseInt(split[1]);
+            sec = Integer.parseInt(split[2]);
+        }catch(NumberFormatException e){
+            System.out.print("Please input digits for hour, minute and second.");
+            return false;
+        }
+        if(hour<0||hour>23) {
+            System.out.println("Invalid input for hour.");
+            return false;
+        }
+        if(min<0||min>59) {
+            System.out.println("Invalid input for minute.");
+            return false;
+        }
+        if(sec<0||sec>59) {
+            System.out.println("Invalid input for second.");
+            return false;
+        }
+        //no error detected
+        return true;
+    }
+    public static boolean conflictShow(String addr, int roomNum, String startDate, String startTime) throws SQLException{
+       ResultSet rs = stmt.executeQuery("SELECT * FROM\n" +
+               "Shows\n" +
+               "WHERE addr = " + addr + " AND " + "room = " + roomNum +
+               " AND " + "sdate = " + startDate + " AND " +
+               "start_time = " + startTime);
+       if(rs.next()) {
+           rs.close();
+           return true;
+       }
+       else {
+           rs.close();
+           return false;
+       }
+    }
+    public static String getEndTime(String time, int length){
+        String[] timeSplit = time.split(":");
+        int[] timeNum = new int[3];//HH:MM:SS
+        for(int i = 0 ;i<3; i++){
+            timeNum[i] = Integer.parseInt(timeSplit[i]);
+        }
+        int newMin = (timeNum[1] + length)%60;//added min
+        int minCarry = (timeNum[1]+length)/60;//carry to hour
+        int newHour = (timeNum[0]+minCarry)%24;//added hour
+        String newTime = "" + newHour + ":" + newMin + ":" + timeNum[2];
+        return newTime;
+    }
+    public static String getType(){
+        while(true){
+            System.out.println("Please choose the type of the show:");
+            System.out.println("1 Movie");
+            System.out.println("2 Stage Show");
+            System.out.print(">> ");
+            int option = scanner.nextInt();
+            if(option==1){
+                return "Movie";
+            }else if(option == 2){
+                return "Stage Show";
+            }else{
+                System.out.println("Invalid Optin. Please enter again.");
+            }
+        }
+    }
+    public static boolean confirmResult(){
+        while(true){
+            System.out.println("1 Correct");
+            System.out.println("2 Incorrect");
+            System.out.print(">>  ");
+            int option = scanner.nextInt();
+            if(option==1){
+                return true;
+            }else if(option ==2){
+                return false;
+            }else{
+                System.out.println("Please give a valid option.");
+            }
+        }
+    }
     public static void addShow(){
         while(true){
             String address;//addr
+            String addressNoQuote;
             int roomNum;//room
             String startDate;//sdate
+            String startDateNoQuote;
             String startTime;//start_time
+            String startTimeNoQuote;
+            String endTime;//end_time
+            String endTimeNoQuote;
             String title;
+            String titleNoQuote;
             String director;
+            String directorNoQuote;
             String language;//lang
+            String languageNoQuote;
+            String type;
             int price;
             try{
                 System.out.println("Please follow the instructions to schedule a new show:\n");
@@ -407,6 +506,7 @@ public class connectPG {
                     System.out.println("Choose from oprions 1 to " + addresses.size());
                     throw new InputMismatchException();
                 }else{
+                    addressNoQuote = addresses.get(theatreOption-1);
                     address = "'" + addresses.get(theatreOption-1) + "'";
                 }
                 //The address of the theatre is received successfully
@@ -428,13 +528,131 @@ public class connectPG {
                 System.out.println("Please enter the date that you want to schedule for this show in the YYYY-MM-DD format:\n");
                 System.out.print(">>  ");
                 scanner.nextLine();
-                startDate = scanner.nextLine();
-                if(!verifyDate(startDate))
+                startDateNoQuote = scanner.nextLine();
+                if(!verifyDate(startDateNoQuote))
                     throw new InputMismatchException();
-                startDate = "'" + startDate + "'";
+                startDate = "'" + startDateNoQuote + "'";
                 //The input date is valid
 
+                System.out.println("Please enter the start time of the show in the HH:MM:SS format:\n");
+                System.out.print(">> ");
+                startTimeNoQuote = scanner.nextLine();
+                if(!verifyTime(startTimeNoQuote))
+                    throw new InputMismatchException();
+                startTime = "'" + startTimeNoQuote + "'";
+                //The input time is valid
 
+                if(conflictShow(address,roomNum,startDate,startTime)){//check for conflicting shows
+                    System.out.println("Another show is already scheduled for the given location and time.");
+                    System.out.println("Please choose another time.");
+                    continue;
+                }
+                //There is no conflicting show
+
+                System.out.println("Please enter the duration of the show in minutes:\n");
+                System.out.print(">>  ");
+                int duration = scanner.nextInt();
+                if(duration<1){//check the given duration
+                    System.out.println("The duration has to be at least one minute.");
+                    continue;
+                }
+
+                //Get the end time of the show
+                endTimeNoQuote = getEndTime(startTimeNoQuote,duration);
+                endTime = "'" + endTimeNoQuote + "'";
+
+                System.out.println("Please give the title of the show:\n");
+                System.out.print(">>  ");
+                scanner.nextLine();
+                titleNoQuote = scanner.nextLine();
+                if(titleNoQuote.length()<1)
+                    title = "NULL";
+                else
+                    title = "'" + titleNoQuote + "'";
+                //The title is received
+
+                System.out.println("Please give the director of the show:\n");
+                System.out.print(">>  ");
+                directorNoQuote = scanner.nextLine();
+                if(directorNoQuote.length()<1)
+                    director = "NULL";
+                else
+                    director = "'" + directorNoQuote + "'";
+                //The director is received
+
+                System.out.println("Please give the language of the show:\n");
+                System.out.print(">>  ");
+                languageNoQuote = scanner.nextLine();
+                if(languageNoQuote.length()<1)
+                    language = "NULL";
+                else
+                    language = "'" + languageNoQuote + "'";
+                //language is received
+
+                System.out.println("Please enter the ticket price for the show:\n");
+                System.out.print(">>  ");
+                price = scanner.nextInt();
+                if(price<0){
+                    System.out.println("The price cannot be negative.");
+                    continue;
+                }
+                //ticket price is received
+
+                type = getType();
+                if(type.equals("Movie")){//movie type
+                    String genre;
+                    String genreNoQuote;
+                    double rating;
+
+                    System.out.println("Please specify the genre of the movie:\n");
+                    System.out.print(">>  ");
+                    scanner.nextLine();
+                    genreNoQuote = scanner.nextLine();
+                    if(genreNoQuote.length()<1)
+                        genre = "NULL";
+                    else
+                        genre = "'" + genreNoQuote + "'";
+                    //received genre of the movie
+
+                    System.out.println("Please give the rating of the movie:\n");
+                    System.out.print(">>  ");
+                    rating = scanner.nextDouble();
+                    if(rating<1.0||rating>10.0){
+                        System.out.println("Please give a rating between 1 and 10");
+                        continue;
+                    }
+                    //received rating of the movie
+                    System.out.println("Please review the following information:\n");
+                    System.out.println("Theatre Address:  " + addressNoQuote);
+                    System.out.println("Room Number:  " + roomNum);
+                    System.out.println("Start Date:  " + startDateNoQuote);
+                    System.out.println("Start Time:  " + startTimeNoQuote);
+                    System.out.println("End Time:  " + endTimeNoQuote);
+                    System.out.println("Title:  " + title);
+                    System.out.println("Director:  " + director);
+                    System.out.println("Language:  " + language);
+                    System.out.println("Ticket Price:  " + price);
+                    System.out.println("Genre:  " + genre);
+                    System.out.println("Rating:  " + rating);
+                    System.out.println();
+
+                    if(confirmResult()){
+                        stmt.executeUpdate("INSERT INTO Shows\n"+
+                                "VALUES" + "(" + address + "," + roomNum + "," + startDate + "," +
+                                startTime + "," + title + "," + endTime + "," + director + "," +
+                                language + "," + price + ")");
+                        stmt.executeUpdate("INSERT INTO Movie\n" +
+                                "VALUES" + "(" + address + "," + roomNum + "," + startDate + "," +
+                                startTime + "," + genre + "," + rating + ")");
+                        System.out.println("New show successfully recorded.");
+                        break;
+                    }else{
+                        continue;
+                    }
+                }else{
+
+                }
+                break;
 
 
 
@@ -492,6 +710,8 @@ public class connectPG {
         }
 
     }
+
+
     //print operation options for customers
     public static void printOptionCustomer(){
         System.out.println("Please choose from the following options:");
@@ -784,6 +1004,7 @@ public class connectPG {
 				}
             }
         } catch (Exception cnfe) {
+            System.out.println(cnfe.getMessage());
             System.out.println("Class not found");//catch exception for driver
             System.exit(2);
         }
