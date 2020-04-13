@@ -5,7 +5,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.InputMismatchException;
 import java.util.Scanner;
-import java.time.LocalDate;
+
 
 public class connectPG {
     private static final String url = "jdbc:postgresql://comp421.cs.mcgill.ca:5432/cs421";
@@ -311,11 +311,7 @@ public class connectPG {
             }else if(currentMonth>month){//the input month is earlier
                 return false;
             }else{//same month
-                if(currentDay<day){//the input day is later
-                    return true;
-                }else{//the input day is same or earlier
-                    return false;
-                }
+                return currentDay < day;
             }
         }
     }
@@ -333,26 +329,14 @@ public class connectPG {
         int[] longMonth = {1,3,5,7,8,10,12};
         int[] shortMonth = {4,6,9,11};
         if(containsElement(longMonth,month)){//month is long month: 31 days
-            if(day>=1&&day<=31)
-                return true;
-            else
-                return false;
+            return day >= 1 && day <= 31;
         }else if(containsElement(shortMonth,month)){//month is short month:30 days
-            if(day>=1&&day<=30)
-                return true;
-            else
-                return false;
+            return day >= 1 && day <= 30;
         }else{//It is February
             if((year%4==0&&year%100!=0)||year%400==0){//leap year: 29 days
-                if(day>=1&&day<=29)
-                    return true;
-                else
-                    return false;
+                return day >= 1 && day <= 29;
             }else{//normal year: 28 days
-                if(day>=1&&day<=28)
-                    return  true;
-                else
-                    return false;
+                return day >= 1 && day <= 28;
             }
         }
     }
@@ -442,8 +426,7 @@ public class connectPG {
         int newMin = (timeNum[1] + length)%60;//added min
         int minCarry = (timeNum[1]+length)/60;//carry to hour
         int newHour = (timeNum[0]+minCarry)%24;//added hour
-        String newTime = "" + newHour + ":" + newMin + ":" + timeNum[2];
-        return newTime;
+        return "" + newHour + ":" + newMin + ":" + timeNum[2];
     }
     public static String getType(){
         while(true){
@@ -503,8 +486,8 @@ public class connectPG {
                 System.out.print(">>  ");
                 int theatreOption = scanner.nextInt();//get user input for theatre choice
                 if (theatreOption<1||theatreOption>addresses.size()){//The option is invalid
-                    System.out.println("Choose from oprions 1 to " + addresses.size());
-                    throw new InputMismatchException();
+                    System.out.println("Choose from options 1 to " + addresses.size());
+                    continue;
                 }else{
                     addressNoQuote = addresses.get(theatreOption-1);
                     address = "'" + addresses.get(theatreOption-1) + "'";
@@ -521,7 +504,7 @@ public class connectPG {
                         System.out.print(num+"\t");
                     }
                     System.out.println();
-                    throw new InputMismatchException();
+                    continue;
                 }
                 //The room number is received successfully
 
@@ -530,7 +513,7 @@ public class connectPG {
                 scanner.nextLine();
                 startDateNoQuote = scanner.nextLine();
                 if(!verifyDate(startDateNoQuote))
-                    throw new InputMismatchException();
+                    continue;
                 startDate = "'" + startDateNoQuote + "'";
                 //The input date is valid
 
@@ -538,7 +521,7 @@ public class connectPG {
                 System.out.print(">> ");
                 startTimeNoQuote = scanner.nextLine();
                 if(!verifyTime(startTimeNoQuote))
-                    throw new InputMismatchException();
+                    continue;
                 startTime = "'" + startTimeNoQuote + "'";
                 //The input time is valid
 
@@ -598,6 +581,11 @@ public class connectPG {
                 }
                 //ticket price is received
 
+
+                String showSQL = "INSERT INTO Shows\n"+
+                        "VALUES" + "(" + address + "," + roomNum + "," + startDate + "," +
+                        startTime + "," + title + "," + endTime + "," + director + "," +
+                        language + "," + price + ")";
                 type = getType();
                 if(type.equals("Movie")){//movie type
                     String genre;
@@ -637,30 +625,61 @@ public class connectPG {
                     System.out.println();
 
                     if(confirmResult()){
-                        stmt.executeUpdate("INSERT INTO Shows\n"+
-                                "VALUES" + "(" + address + "," + roomNum + "," + startDate + "," +
-                                startTime + "," + title + "," + endTime + "," + director + "," +
-                                language + "," + price + ")");
+                        stmt.executeUpdate(showSQL);
                         stmt.executeUpdate("INSERT INTO Movie\n" +
                                 "VALUES" + "(" + address + "," + roomNum + "," + startDate + "," +
                                 startTime + "," + genre + "," + rating + ")");
                         System.out.println("New show successfully recorded.");
                         break;
-                    }else{
-                        continue;
                     }
-                }else{
+                }else{//stage show type
+                    String leadingActor;
+                    String leadingActorNoQuote;
 
+                    System.out.println("Please enter the leading actor of the stage show:\n");
+                    System.out.print(">>  ");
+
+                    scanner.nextLine();
+                    leadingActorNoQuote = scanner.nextLine();
+                    if(leadingActorNoQuote.length()<1)
+                        leadingActor = "NULL";
+                    else
+                        leadingActor = "'" + leadingActorNoQuote +"'";
+
+                    //received the leaning actor
+                    System.out.println("Please review the following information:\n");
+                    System.out.println("Theatre Address:  " + addressNoQuote);
+                    System.out.println("Room Number:  " + roomNum);
+                    System.out.println("Start Date:  " + startDateNoQuote);
+                    System.out.println("Start Time:  " + startTimeNoQuote);
+                    System.out.println("End Time:  " + endTimeNoQuote);
+                    System.out.println("Title:  " + title);
+                    System.out.println("Director:  " + director);
+                    System.out.println("Language:  " + language);
+                    System.out.println("Ticket Price:  " + price);
+                    System.out.println("Leading Actor:  " + leadingActor);
+                    System.out.println();
+                    if(confirmResult()){
+                        stmt.executeUpdate(showSQL);
+                        stmt.executeUpdate("INSERT INTO StageShow\n" +
+                                "VALUES" + "(" + address + "," + roomNum + "," + startDate + "," +
+                                startTime + "," + leadingActor + ")");
+                        System.out.println("New show successfully recorded.");
+                        break;
+                    }
                 }
-                break;
-
-
-
             }catch(InputMismatchException e){
                 System.out.println("Please provide the inputs in proper formats.\n");
+                scanner.nextLine();
+                if(navigate()==2)
+                    break;
             }catch (SQLException e){
                 System.out.println("Database Error.");
                 System.out.println(e.getMessage());
+                scanner.nextLine();
+                if(navigate()==2){
+                    break;
+                }
             }
         }
     }
@@ -1005,7 +1024,9 @@ public class connectPG {
             }
         } catch (Exception cnfe) {
             System.out.println(cnfe.getMessage());
-            System.out.println("Class not found");//catch exception for driver
+            stmt.close();
+            con.close();
+            scanner.close();
             System.exit(2);
         }
     }
